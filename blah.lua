@@ -17,21 +17,19 @@ local baseDrawingObj = setmetatable({
     ZIndex = 0,
     Transparency = 1,
     Color = Color3.new(),
-    Remove = function(self)
-        setmetatable(self, nil)
-    end,
-    Destroy = function(self)
-        setmetatable(self, nil)
-    end
+    __OBJECT_EXISTS = true,
+    Remove = function(self) end,
+    Destroy = function(self) end
 }, {
     __add = function(t1, t2)
         local result = table.clone(t1)
-        result.Visible      = t2.Visible
-        result.ZIndex       = t2.ZIndex
-        result.Transparency = t2.Transparency
-        result.Color        = t2.Color
-        result.Remove       = t2.Remove
-        result.Destroy      = t2.Destroy
+        result.Visible         = t2.Visible
+        result.ZIndex          = t2.ZIndex
+        result.Transparency    = t2.Transparency
+        result.Color           = t2.Color
+        result.__OBJECT_EXISTS = t2.__OBJECT_EXISTS
+        result.Remove          = t2.Remove
+        result.Destroy         = t2.Destroy
         return result
     end
 })
@@ -119,15 +117,14 @@ local function createDrawing(drawingType)
                 lineObj[index] = value
             end,
             __index = function(self, index)
-                if index == "Remove" or index == "Destroy" then
-                    return function()
-                        lineFrame:Destroy()
-                        lineObj.Remove(self)
-                        return lineObj:Remove()
-                    end
-                end
-                return lineObj[index]
-            end,
+				if index == "Remove" or index == "Destroy" then
+					return function()
+						lineObj.__OBJECT_EXISTS = false 
+						lineFrame:Destroy()
+					end
+				end
+				return lineObj[index]
+			end,
             __tostring = function() return "Drawing" end
         })
     elseif drawingType == "Text" then
@@ -224,13 +221,14 @@ local function createDrawing(drawingType)
             end,
             __tostring = function() return "Drawing" end
         })
-    elseif drawingType == "Circle" then
-        local circleObj = ({
-            Radius = 150,
-            Position = Vector2.zero,
-            Thickness = .7,
-            Filled = false
-        } + baseDrawingObj)
+		elseif drawingType == "Circle" then
+		local circleObj = ({
+			Radius = 150,
+			Position = Vector2.zero,
+			Thickness = .7,
+			Filled = false,
+			NumSides = 0
+		} + baseDrawingObj)
 
         local circleFrame, uiCorner, uiStroke = Instance.new("Frame"), Instance.new("UICorner"), Instance.new("UIStroke")
         circleFrame.Name = drawingIndex
@@ -399,17 +397,14 @@ local function createDrawing(drawingType)
                 imageObj[index] = value
             end,
             __index = function(self, index)
-                if index == "Remove" or index == "Destroy" then
-                    return function()
-                        imageFrame:Destroy()
-                        imageObj.Remove(self)
-                        return imageObj:Remove()
-                    end
-                elseif index == "Data" then
-                    return nil -- TODO: add error here
-                end
-                return imageObj[index]
-            end,
+				if index == "Remove" or index == "Destroy" then
+					return function()
+						imageObj.__OBJECT_EXISTS = false
+						imageFrame:Destroy()
+					end
+				end
+				return imageObj[index]
+			end,
             __tostring = function() return "Drawing" end
         })
     elseif drawingType == "Quad" then
@@ -475,17 +470,17 @@ local function createDrawing(drawingType)
                 end
             end),
             __index = (function(self, Property)
-                if (string.lower(tostring(Property)) == "remove") then
-                    return (function()
-                        PointA:Remove();
-                        PointB:Remove();
-                        PointC:Remove();
-                        PointD:Remove();
-                    end)
-                end
-
-                return QuadProperties[Property]
-            end)
+				if (string.lower(tostring(Property)) == "remove" or string.lower(tostring(Property)) == "destroy") then
+					return (function()
+						QuadProperties.__OBJECT_EXISTS = false
+						PointA:Remove()
+						PointB:Remove()
+						PointC:Remove()
+						PointD:Remove()
+					end)
+				end
+				return QuadProperties[Property]
+			end)
         });
     elseif drawingType == "Triangle" then
         local triangleObj = ({
@@ -525,15 +520,13 @@ local function createDrawing(drawingType)
             end,
             __index = function(self, index)
                 if index == "Remove" or index == "Destroy" then
-                    return function()
-                        for _, linePoint in _linePoints do
-                            linePoint:Remove()
-                        end
-
-                        triangleObj.Remove(self)
-                        return triangleObj:Remove()
-                    end
-                end
+					return function()
+						triangleObj.__OBJECT_EXISTS = false
+						for _, linePoint in _linePoints do
+							linePoint:Remove()
+						end
+					end
+				end
                 return triangleObj[index]
             end,
         })
