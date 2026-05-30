@@ -562,8 +562,16 @@ getgenv().isrenderobj = newcclosure(function(tab)
 end) 
 
 getgenv().cleardrawcache = newcclosure(function()
-    if drawingUI then
-        drawingUI:ClearAllChildren();
+    for obj in pairs(drawingObjects) do
+        pcall(function()
+            obj:Remove()
+        end)
     end
-    return 0;
+    table.clear(drawingObjects)
+
+    if drawingUI then
+        drawingUI:ClearAllChildren()
+    end
+
+    return 0
 end)
