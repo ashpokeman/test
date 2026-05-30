@@ -58,6 +58,7 @@ DrawingLibL.Fonts = {
     ["Plex"] = 2,
     ["Monospace"] = 3
 }
+
 local function createDrawing(drawingType)
     drawingIndex += 1
     if drawingType == "Line" then
