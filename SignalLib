@@ -1,0 +1,72 @@
+--[===[
+Signal Library written by the creator/Lead developer of SirHurt, spook0479)
+]===]
+
+local Signal = {}
+Signal.__index = Signal
+
+local Connection = {}
+Connection.__index = Connection
+
+function Connection:Disconnect()
+    self._conn.connected = false
+    local handlers = self._signal._handlers
+    for i, c in ipairs(handlers) do
+        if c == self._conn then
+            table.remove(handlers, i)
+            break
+        end
+    end
+end
+
+local function makeConnection(signal, conn)
+    return setmetatable({ _signal = signal, _conn = conn }, Connection)
+end
+
+function Signal.new()
+    return setmetatable({
+        _handlers = {},
+        _waiters  = {},
+    }, Signal)
+end
+
+function Signal:Connect(fn)
+    local conn = { fn = fn, once = false, connected = true }
+    table.insert(self._handlers, conn)
+    return makeConnection(self, conn)
+end
+
+function Signal:Once(fn)
+    local conn = { fn = fn, once = true, connected = true }
+    table.insert(self._handlers, conn)
+    return makeConnection(self, conn)
+end
+
+function Signal:Wait()
+    local co = coroutine.running()
+    table.insert(self._waiters, co)
+    return coroutine.yield()
+end
+
+function Signal:Fire(...)
+    local snapshot = table.clone(self._handlers)
+    for _, conn in ipairs(snapshot) do
+        if conn.connected then
+            if conn.once then
+                conn.connected = false
+                for i, c in ipairs(self._handlers) do
+                    if c == conn then table.remove(self._handlers, i) break end
+                end
+            end
+            conn.fn(...)
+        end
+    end
+
+    local waiters = self._waiters
+    self._waiters = {}
+    for _, co in ipairs(waiters) do
+        task.spawn(co, ...)
+    end
+end
+
+return Signal
